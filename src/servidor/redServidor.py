@@ -1,8 +1,30 @@
 import socket
+import threading
 from src.comun import protocolo as p
 from src.comun.constantes import CONFIG_DEFAULT
 
 PUERTO_JUEGO = 8889
+
+jugadores_conectados = {}
+
+
+def atender_cliente(conexion, direccion, id_jugador):
+    lector = p.LectorMensajes()
+    datos_recibidos = conexion.recv(1024)
+    mensajes = lector.agregar_bytes(datos_recibidos)
+
+    for mensaje in mensajes:
+        print("Mensaje recibido de", id_jugador, ":", mensaje)
+        if mensaje["type"] == "join":
+            jugadores_conectados[id_jugador] = mensaje["name"]
+            print("Jugadores conectados ahora:", jugadores_conectados)
+
+            respuesta = {
+                "type": "welcome",
+                "player_id": id_jugador,
+                "config": CONFIG_DEFAULT,
+            }
+            p.enviar(conexion, respuesta)
 
 
 def iniciar_servidor():
@@ -11,23 +33,16 @@ def iniciar_servidor():
     servidor.listen()
     print("Servidor esperando conexiones en el puerto", PUERTO_JUEGO)
 
-    conexion, direccion = servidor.accept()
-    print("Se conecto un cliente desde", direccion)
+    contador_jugadores = 0
 
-    lector = p.LectorMensajes()
-    datos_recibidos = conexion.recv(1024)
-    mensajes = lector.agregar_bytes(datos_recibidos)
+    while True:
+        conexion, direccion = servidor.accept()
+        contador_jugadores = contador_jugadores + 1
+        id_jugador = "p" + str(contador_jugadores)
+        print("Se conecto un cliente desde", direccion, "- asignado como", id_jugador)
 
-    for mensaje in mensajes:
-        print("Mensaje recibido:", mensaje)
-        if mensaje["type"] == "join":
-            respuesta = {
-                "type": "welcome",
-                "player_id": "p1",
-                "config": CONFIG_DEFAULT,
-            }
-            p.enviar(conexion, respuesta)
-            print("Se envio welcome al cliente")
+        hilo = threading.Thread(target=atender_cliente, args=(conexion, direccion, id_jugador))
+        hilo.start()
 
 
 if __name__ == "__main__":
