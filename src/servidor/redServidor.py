@@ -8,6 +8,22 @@ PUERTO_JUEGO = 8889
 jugadores_conectados = {}
 
 
+def enviar_lobby_a_todos():
+    lista_jugadores = []
+    for id_jugador in jugadores_conectados:
+        nombre = jugadores_conectados[id_jugador]["nombre"]
+        lista_jugadores.append({"id": id_jugador, "name": nombre})
+
+    mensaje_lobby = {
+        "type": "lobby",
+        "players": lista_jugadores,
+    }
+
+    for id_jugador in jugadores_conectados:
+        conexion_jugador = jugadores_conectados[id_jugador]["conexion"]
+        p.enviar(conexion_jugador, mensaje_lobby)
+
+
 def atender_cliente(conexion, direccion, id_jugador):
     lector = p.LectorMensajes()
     datos_recibidos = conexion.recv(1024)
@@ -16,7 +32,10 @@ def atender_cliente(conexion, direccion, id_jugador):
     for mensaje in mensajes:
         print("Mensaje recibido de", id_jugador, ":", mensaje)
         if mensaje["type"] == "join":
-            jugadores_conectados[id_jugador] = mensaje["name"]
+            jugadores_conectados[id_jugador] = {
+                "nombre": mensaje["name"],
+                "conexion": conexion,
+            }
             print("Jugadores conectados ahora:", jugadores_conectados)
 
             respuesta = {
@@ -25,6 +44,8 @@ def atender_cliente(conexion, direccion, id_jugador):
                 "config": CONFIG_DEFAULT,
             }
             p.enviar(conexion, respuesta)
+
+            enviar_lobby_a_todos()
 
 
 def iniciar_servidor():

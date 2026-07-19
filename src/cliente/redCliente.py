@@ -17,13 +17,12 @@ def conectar_a_servidor(ip_servidor):
     print("Se envio join al servidor")
 
     lector = p.LectorMensajes()
-    datos_recibidos = cliente.recv(1024)
-    mensajes = lector.agregar_bytes(datos_recibidos)
 
-    for mensaje in mensajes:
-        print("Respuesta del servidor:", mensaje)
-
-    return cliente
+    while True:
+        datos_recibidos = cliente.recv(1024)
+        mensajes = lector.agregar_bytes(datos_recibidos)
+        for mensaje in mensajes:
+            print("Mensaje del servidor:", mensaje)
 
 
 if __name__ == "__main__":
