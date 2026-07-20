@@ -39,12 +39,38 @@ def enviar_lobby_a_todos():
         p.enviar(conexion_jugador, mensaje_lobby)
 
 
+def mover_jugador(datos_jugador, segundos_transcurridos):
+    velocidad = CONFIG_DEFAULT["speed"]
+    limite_mapa = CONFIG_DEFAULT["map_size"]
+    radio_jugador = CONFIG_DEFAULT["player_radius"]
+
+    nueva_x = datos_jugador["x"] + datos_jugador["dir_x"] * velocidad * segundos_transcurridos
+    nueva_y = datos_jugador["y"] + datos_jugador["dir_y"] * velocidad * segundos_transcurridos
+
+    if nueva_x < radio_jugador:
+        nueva_x = radio_jugador
+    if nueva_x > limite_mapa - radio_jugador:
+        nueva_x = limite_mapa - radio_jugador
+
+    if nueva_y < radio_jugador:
+        nueva_y = radio_jugador
+    if nueva_y > limite_mapa - radio_jugador:
+        nueva_y = limite_mapa - radio_jugador
+
+    datos_jugador["x"] = nueva_x
+    datos_jugador["y"] = nueva_y
+
+
 def ciclo_de_estado():
     tick_rate = CONFIG_DEFAULT["tick_rate"]
     segundos_entre_ticks = 1 / tick_rate
 
     while True:
         time.sleep(segundos_entre_ticks)
+
+        for id_jugador in jugadores_conectados:
+            datos_jugador = jugadores_conectados[id_jugador]
+            mover_jugador(datos_jugador, segundos_entre_ticks)
 
         lista_jugadores = []
         for id_jugador in jugadores_conectados:
@@ -75,6 +101,7 @@ def atender_cliente(conexion, direccion, id_jugador):
 
         for mensaje in mensajes:
             print("Mensaje recibido de", id_jugador, ":", mensaje)
+
             if mensaje["type"] == "join":
                 x_inicial, y_inicial = generar_posicion_inicial()
                 jugadores_conectados[id_jugador] = {
@@ -82,6 +109,8 @@ def atender_cliente(conexion, direccion, id_jugador):
                     "conexion": conexion,
                     "x": x_inicial,
                     "y": y_inicial,
+                    "dir_x": 0,
+                    "dir_y": 0,
                 }
                 print("Jugadores conectados ahora:", jugadores_conectados)
 
@@ -93,6 +122,10 @@ def atender_cliente(conexion, direccion, id_jugador):
                 p.enviar(conexion, respuesta)
 
                 enviar_lobby_a_todos()
+
+            if mensaje["type"] == "input":
+                jugadores_conectados[id_jugador]["dir_x"] = mensaje["dir"]["x"]
+                jugadores_conectados[id_jugador]["dir_y"] = mensaje["dir"]["y"]
 
 
 def iniciar_servidor():

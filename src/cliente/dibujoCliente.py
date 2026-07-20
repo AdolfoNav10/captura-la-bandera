@@ -9,11 +9,15 @@ ALTO_VENTANA = 900
 
 ultimo_state = {"players": [], "flag": {"owner": None, "x": 500, "y": 500}}
 config_juego = {"map_size": 1000}
+conexion_servidor = None
 
 
 def escuchar_servidor(ip_servidor):
+    global conexion_servidor
+
     cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     cliente.connect((ip_servidor, PUERTO_JUEGO))
+    conexion_servidor = cliente
 
     mensaje_join = {
         "type": "join",
@@ -41,6 +45,24 @@ def escalar_posicion(x, y):
     return x_pantalla, y_pantalla
 
 
+def calcular_direccion_actual():
+    teclas_presionadas = pygame.key.get_pressed()
+
+    direccion_x = 0
+    direccion_y = 0
+
+    if teclas_presionadas[pygame.K_a]:
+        direccion_x = -1
+    if teclas_presionadas[pygame.K_d]:
+        direccion_x = 1
+    if teclas_presionadas[pygame.K_w]:
+        direccion_y = -1
+    if teclas_presionadas[pygame.K_s]:
+        direccion_y = 1
+
+    return direccion_x, direccion_y
+
+
 def iniciar_ventana(ip_servidor):
     hilo_red = threading.Thread(target=escuchar_servidor, args=(ip_servidor,))
     hilo_red.daemon = True
@@ -54,11 +76,23 @@ def iniciar_ventana(ip_servidor):
     color_jugador = (80, 130, 220)
     color_bandera = (232, 147, 12)
 
+    ultima_direccion_enviada = (0, 0)
+
     ejecutando = True
     while ejecutando:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 ejecutando = False
+
+        direccion_actual = calcular_direccion_actual()
+
+        if direccion_actual != ultima_direccion_enviada and conexion_servidor is not None:
+            mensaje_input = {
+                "type": "input",
+                "dir": {"x": direccion_actual[0], "y": direccion_actual[1]},
+            }
+            p.enviar(conexion_servidor, mensaje_input)
+            ultima_direccion_enviada = direccion_actual
 
         ventana.fill(color_fondo)
 
