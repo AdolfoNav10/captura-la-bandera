@@ -37,7 +37,6 @@ def escuchar_servidor(ip_servidor):
             if mensaje["type"] == "state":
                 ultimo_state["players"] = mensaje["players"]
                 ultimo_state["flag"] = mensaje["flag"]
-            
 
 
 def escalar_posicion(x, y):
@@ -86,6 +85,12 @@ def iniciar_ventana(ip_servidor):
             if evento.type == pygame.QUIT:
                 ejecutando = False
 
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_SPACE:
+                    if conexion_servidor is not None:
+                        mensaje_interact = {"type": "interact"}
+                        p.enviar(conexion_servidor, mensaje_interact)
+
         direccion_actual = calcular_direccion_actual()
 
         if direccion_actual != ultima_direccion_enviada and conexion_servidor is not None:
@@ -98,11 +103,9 @@ def iniciar_ventana(ip_servidor):
 
         ventana.fill(color_fondo)
 
-
         x_centro, y_centro = escalar_posicion(config_juego["map_size"] / 2, config_juego["map_size"] / 2)
         radio_pantalla = config_juego["circle_radius"] * (ANCHO_VENTANA / config_juego["map_size"])
         pygame.draw.circle(ventana, (200, 205, 212), (int(x_centro), int(y_centro)), int(radio_pantalla), 2)
-
 
         x_bandera, y_bandera = escalar_posicion(ultimo_state["flag"]["x"], ultimo_state["flag"]["y"])
         pygame.draw.circle(ventana, color_bandera, (int(x_bandera), int(y_bandera)), 10)

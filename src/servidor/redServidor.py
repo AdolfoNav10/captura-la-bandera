@@ -9,6 +9,8 @@ from src.comun.constantes import CONFIG_DEFAULT
 PUERTO_JUEGO = 8889
 
 jugadores_conectados = {}
+bandera = {"owner": None, "x": 500, "y": 500}
+juego_terminado = False
 
 
 def generar_posicion_inicial():
@@ -21,6 +23,10 @@ def generar_posicion_inicial():
         distancia_al_centro = math.sqrt((x - centro) ** 2 + (y - centro) ** 2)
         if distancia_al_centro > radio_circulo:
             return x, y
+
+
+def calcular_distancia(x1, y1, x2, y2):
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
 
 def enviar_lobby_a_todos():
@@ -62,34 +68,57 @@ def mover_jugador(datos_jugador, segundos_transcurridos):
 
 
 def ciclo_de_estado():
+    global juego_terminado
     tick_rate = CONFIG_DEFAULT["tick_rate"]
     segundos_entre_ticks = 1 / tick_rate
 
     while True:
         time.sleep(segundos_entre_ticks)
 
-        for id_jugador in jugadores_conectados:
-            datos_jugador = jugadores_conectados[id_jugador]
-            mover_jugador(datos_jugador, segundos_entre_ticks)
+        if not juego_terminado:
+            for id_jugador in jugadores_conectados:
+                datos_jugador = jugadores_conectados[id_jugador]
+                mover_jugador(datos_jugador, segundos_entre_ticks)
 
-        lista_jugadores = []
-        for id_jugador in jugadores_conectados:
-            datos_jugador = jugadores_conectados[id_jugador]
-            lista_jugadores.append({
-                "id": id_jugador,
-                "x": datos_jugador["x"],
-                "y": datos_jugador["y"],
-            })
+            if bandera["owner"] is not None:
+                jugador_portador = jugadores_conectados[bandera["owner"]]
+                bandera["x"] = jugador_portador["x"]
+                bandera["y"] = jugador_portador["y"]
 
-        mensaje_state = {
-            "type": "state",
-            "flag": {"owner": None, "x": 500, "y": 500},
-            "players": lista_jugadores,
-        }
+            if bandera["owner"] is not None:
+                centro = CONFIG_DEFAULT["map_size"] / 2
+                radio_limite = CONFIG_DEFAULT["circle_radius"] + CONFIG_DEFAULT["player_radius"]
+                distancia_al_centro = calcular_distancia(bandera["x"], bandera["y"], centro, centro)
 
-        for id_jugador in jugadores_conectados:
-            conexion_jugador = jugadores_conectados[id_jugador]["conexion"]
-            p.enviar(conexion_jugador, mensaje_state)
+                if distancia_al_centro > radio_limite:
+                    juego_terminado = True
+                    mensaje_ganador = {
+                        "type": "game_over",
+                        "winner": bandera["owner"],
+                    }
+                    for id_jugador in jugadores_conectados:
+                        conexion_jugador = jugadores_conectados[id_jugador]["conexion"]
+                        p.enviar(conexion_jugador, mensaje_ganador)
+                    print(bandera["owner"], "gano la partida")
+
+            lista_jugadores = []
+            for id_jugador in jugadores_conectados:
+                datos_jugador = jugadores_conectados[id_jugador]
+                lista_jugadores.append({
+                    "id": id_jugador,
+                    "x": datos_jugador["x"],
+                    "y": datos_jugador["y"],
+                })
+
+            mensaje_state = {
+                "type": "state",
+                "flag": {"owner": bandera["owner"], "x": bandera["x"], "y": bandera["y"]},
+                "players": lista_jugadores,
+            }
+
+            for id_jugador in jugadores_conectados:
+                conexion_jugador = jugadores_conectados[id_jugador]["conexion"]
+                p.enviar(conexion_jugador, mensaje_state)
 
 
 def atender_cliente(conexion, direccion, id_jugador):
@@ -126,6 +155,21 @@ def atender_cliente(conexion, direccion, id_jugador):
             if mensaje["type"] == "input":
                 jugadores_conectados[id_jugador]["dir_x"] = mensaje["dir"]["x"]
                 jugadores_conectados[id_jugador]["dir_y"] = mensaje["dir"]["y"]
+
+            if mensaje["type"] == "interact":
+                datos_jugador = jugadores_conectados[id_jugador]
+                distancia = calcular_distancia(
+                    datos_jugador["x"], datos_jugador["y"],
+                    bandera["x"], bandera["y"]
+                )
+
+                if distancia <= CONFIG_DEFAULT["interact_radius"]:
+                    if bandera["owner"] is None:
+                        bandera["owner"] = id_jugador
+                        print(id_jugador, "tomo la bandera")
+                    elif bandera["owner"] != id_jugador:
+                        bandera["owner"] = id_jugador
+                        print(id_jugador, "robo la bandera")
 
 
 def iniciar_servidor():
