@@ -8,7 +8,7 @@ ANCHO_VENTANA = 900
 ALTO_VENTANA = 900
 
 ultimo_state = {"players": [], "flag": {"owner": None, "x": 500, "y": 500}}
-config_juego = {"map_size": 1000}
+config_juego = {"map_size": 1000, "circle_radius": 300}
 conexion_servidor = None
 
 
@@ -33,9 +33,11 @@ def escuchar_servidor(ip_servidor):
         for mensaje in mensajes:
             if mensaje["type"] == "welcome":
                 config_juego["map_size"] = mensaje["config"]["map_size"]
+                config_juego["circle_radius"] = mensaje["config"]["circle_radius"]
             if mensaje["type"] == "state":
                 ultimo_state["players"] = mensaje["players"]
                 ultimo_state["flag"] = mensaje["flag"]
+            
 
 
 def escalar_posicion(x, y):
@@ -95,6 +97,12 @@ def iniciar_ventana(ip_servidor):
             ultima_direccion_enviada = direccion_actual
 
         ventana.fill(color_fondo)
+
+
+        x_centro, y_centro = escalar_posicion(config_juego["map_size"] / 2, config_juego["map_size"] / 2)
+        radio_pantalla = config_juego["circle_radius"] * (ANCHO_VENTANA / config_juego["map_size"])
+        pygame.draw.circle(ventana, (200, 205, 212), (int(x_centro), int(y_centro)), int(radio_pantalla), 2)
+
 
         x_bandera, y_bandera = escalar_posicion(ultimo_state["flag"]["x"], ultimo_state["flag"]["y"])
         pygame.draw.circle(ventana, color_bandera, (int(x_bandera), int(y_bandera)), 10)
