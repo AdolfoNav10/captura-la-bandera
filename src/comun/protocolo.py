@@ -1,5 +1,7 @@
 import json
 
+from src.comun.constantes import MENSAJE_MAXIMO
+
 
 def enviar(sock, mensaje: dict):
     texto = json.dumps(mensaje) + "\n"
@@ -12,6 +14,11 @@ class LectorMensajes:
 
     def agregar_bytes(self, datos: bytes) -> list[dict]:
         self._buffer += datos
+
+        if len(self._buffer) > MENSAJE_MAXIMO:
+            self._buffer = b""
+            return []
+
         mensajes = []
 
         while b"\n" in self._buffer:

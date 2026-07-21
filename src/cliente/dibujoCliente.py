@@ -1,9 +1,10 @@
 import pygame
 import socket
 import threading
+import json
+import random
 from src.comun import protocolo as p
 
-PUERTO_JUEGO = 8889
 ANCHO_VENTANA = 900
 ALTO_VENTANA = 900
 
@@ -12,16 +13,51 @@ config_juego = {"map_size": 1000, "circle_radius": 300}
 conexion_servidor = None
 
 
-def escuchar_servidor(ip_servidor):
+def descubrir_servidor():
+    socket_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    socket_udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    socket_udp.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    socket_udp.settimeout(2)
+
+    mensaje_discover = {"type": "discover", "v": 1}
+    texto_discover = json.dumps(mensaje_discover) + "\n"
+    socket_udp.sendto(texto_discover.encode("utf-8"), ("255.255.255.255", 8888))
+
+    lector = p.LectorMensajes()
+
+    try:
+        datos, direccion_servidor = socket_udp.recvfrom(1024)
+        mensajes = lector.agregar_bytes(datos)
+        for mensaje in mensajes:
+            if mensaje["type"] == "server_info":
+                ip_encontrada = direccion_servidor[0]
+                puerto_encontrado = mensaje["tcp_port"]
+                print("Servidor encontrado:", mensaje["name"], "en", ip_encontrada)
+                return ip_encontrada, puerto_encontrado
+    except socket.timeout:
+        print("No se encontro ningun servidor por broadcast")
+        return None, None
+
+
+def escuchar_servidor():
     global conexion_servidor
 
+    ip_servidor, puerto_servidor = descubrir_servidor()
+
+    if ip_servidor is None:
+        print("No se pudo conectar: no se encontro servidor")
+        return
+
     cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cliente.connect((ip_servidor, PUERTO_JUEGO))
+    cliente.connect((ip_servidor, puerto_servidor))
     conexion_servidor = cliente
+
+    nombre_jugador = "Jugador" + str(random.randint(100, 999))
 
     mensaje_join = {
         "type": "join",
-        "name": "Gaby",
+        "v": 1,
+        "name": nombre_jugador,
     }
     p.enviar(cliente, mensaje_join)
 
@@ -37,6 +73,12 @@ def escuchar_servidor(ip_servidor):
             if mensaje["type"] == "state":
                 ultimo_state["players"] = mensaje["players"]
                 ultimo_state["flag"] = mensaje["flag"]
+            if mensaje["type"] == "countdown":
+                print("Countdown:", mensaje["seconds"])
+            if mensaje["type"] == "start":
+                print("La partida ha comenzado")
+            if mensaje["type"] == "error":
+                print("Error del servidor:", mensaje["reason"])
 
 
 def escalar_posicion(x, y):
@@ -64,8 +106,8 @@ def calcular_direccion_actual():
     return direccion_x, direccion_y
 
 
-def iniciar_ventana(ip_servidor):
-    hilo_red = threading.Thread(target=escuchar_servidor, args=(ip_servidor,))
+def iniciar_ventana():
+    hilo_red = threading.Thread(target=escuchar_servidor)
     hilo_red.daemon = True
     hilo_red.start()
 
@@ -120,4 +162,4 @@ def iniciar_ventana(ip_servidor):
 
 
 if __name__ == "__main__":
-    iniciar_ventana("localhost")
+    iniciar_ventana()
