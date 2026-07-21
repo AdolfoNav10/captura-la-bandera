@@ -5,6 +5,7 @@ import random
 import math
 from src.comun import protocolo as p
 from src.comun.constantes import CONFIG_DEFAULT
+import json
 
 PUERTO_JUEGO = 8889
 
@@ -172,6 +173,37 @@ def atender_cliente(conexion, direccion, id_jugador):
                         print(id_jugador, "robo la bandera")
 
 
+
+
+
+
+def escuchar_descubrimiento():
+    socket_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    socket_udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    socket_udp.bind(("0.0.0.0", 8888))
+    print("Escuchando descubrimiento en el puerto UDP 8888")
+
+    lector = p.LectorMensajes()
+
+    while True:
+        datos, direccion_cliente = socket_udp.recvfrom(1024)
+        mensajes = lector.agregar_bytes(datos)
+
+        for mensaje in mensajes:
+            if mensaje["type"] == "discover":
+                respuesta = {
+                    "type": "server_info",
+                    "name": "Servidor de Gaby",
+                    "tcp_port": PUERTO_JUEGO,
+                    "state": "lobby",
+                    "players": len(jugadores_conectados),
+                }
+                texto_respuesta = json.dumps(respuesta) + "\n"
+                socket_udp.sendto(texto_respuesta.encode("utf-8"), direccion_cliente)
+                print("Respondi a un discover desde", direccion_cliente)
+
+
+
 def iniciar_servidor():
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.bind(("0.0.0.0", PUERTO_JUEGO))
@@ -180,6 +212,9 @@ def iniciar_servidor():
 
     hilo_estado = threading.Thread(target=ciclo_de_estado)
     hilo_estado.start()
+
+    hilo_descubrimiento = threading.Thread(target=escuchar_descubrimiento)
+    hilo_descubrimiento.start()
 
     contador_jugadores = 0
 
@@ -191,7 +226,6 @@ def iniciar_servidor():
 
         hilo = threading.Thread(target=atender_cliente, args=(conexion, direccion, id_jugador))
         hilo.start()
-
 
 if __name__ == "__main__":
     iniciar_servidor()
