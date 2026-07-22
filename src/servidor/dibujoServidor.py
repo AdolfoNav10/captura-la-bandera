@@ -3,8 +3,8 @@ import threading
 from src.servidor import redServidor
 from src.comun.constantes import CONFIG_DEFAULT
 
-ANCHO_VENTANA = 900
-ALTO_VENTANA = 900
+ANCHO_VENTANA = 950
+ALTO_VENTANA = 950
 
 
 def escalar_posicion(x, y):
@@ -17,12 +17,13 @@ def ventana_servidor():
     ventana = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
     pygame.display.set_caption("Servidor - Captura la Bandera")
     fuente = pygame.font.SysFont(None, 32)
+    fuente_grande = pygame.font.SysFont(None, 52)
 
-    color_fondo = (30, 33, 38)
-    color_jugador = (80, 130, 220)
-    color_bandera = (232, 147, 12)
-    color_circulo = (90, 95, 105)
-    color_texto = (235, 238, 242)
+    color_fondo = (16, 16, 20)
+    color_jugador = (165, 0, 68)
+    color_bandera = (237, 187, 0)
+    color_circulo = (0, 77, 152)
+    color_texto = (240, 240, 245)
 
     ejecutando = True
     while ejecutando:
@@ -53,7 +54,11 @@ def ventana_servidor():
         if redServidor.fase_partida == "lobby":
             cantidad = len(redServidor.jugadores_conectados)
             texto = fuente.render("Lobby - presiona ENTER para iniciar (" + str(cantidad) + " jugadores)", True, color_texto)
-            ventana.blit(texto, (20, 20))
+            ventana.blit(texto, (ANCHO_VENTANA / 2 - texto.get_width() / 2, 30))
+
+        if redServidor.juego_terminado and redServidor.id_ganador is not None:
+            texto = fuente_grande.render("Ganador: " + redServidor.id_ganador, True, color_bandera)
+            ventana.blit(texto, (ANCHO_VENTANA / 2 - texto.get_width() / 2, 40))
 
         pygame.display.flip()
 
@@ -63,7 +68,6 @@ def ventana_servidor():
 def iniciar():
     redServidor.iniciar_servidor_en_hilos()
     ventana_servidor()
-
 
 if __name__ == "__main__":
     iniciar()

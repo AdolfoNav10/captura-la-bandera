@@ -5,11 +5,12 @@ import json
 import random
 from src.comun import protocolo as p
 
-ANCHO_VENTANA = 900
-ALTO_VENTANA = 900
+ANCHO_VENTANA = 950
+ALTO_VENTANA = 950
 
 ultimo_state = {"players": [], "flag": {"owner": None, "x": 500, "y": 500}}
 config_juego = {"map_size": 1000, "circle_radius": 300}
+info_partida = {"mi_id": None, "ganador": None}
 conexion_servidor = None
 
 
@@ -27,16 +28,21 @@ def descubrir_servidor():
 
     try:
         datos, direccion_servidor = socket_udp.recvfrom(1024)
+
+        if not datos.endswith(b"\n"):
+            datos = datos + b"\n"
+
         mensajes = lector.agregar_bytes(datos)
         for mensaje in mensajes:
-            if mensaje["type"] == "server_info":
+            if mensaje.get("type") == "server_info":
                 ip_encontrada = direccion_servidor[0]
                 puerto_encontrado = mensaje["tcp_port"]
-                print("Servidor encontrado:", mensaje["name"], "en", ip_encontrada)
+                print("Servidor encontrado:", mensaje.get("name"), "en", ip_encontrada)
                 return ip_encontrada, puerto_encontrado
     except socket.timeout:
         print("No se encontro ningun servidor por broadcast")
-        return None, None
+
+    return None, None
 
 
 def escuchar_servidor():
@@ -45,8 +51,12 @@ def escuchar_servidor():
     ip_servidor, puerto_servidor = descubrir_servidor()
 
     if ip_servidor is None:
-        print("No se pudo conectar: no se encontro servidor")
-        return
+        respuesta = input("No se encontro servidor. Escribe la IP del servidor (o Enter para salir): ").strip()
+        if respuesta == "":
+            print("No se pudo conectar")
+            return
+        ip_servidor = respuesta
+        puerto_servidor = 8889
 
     cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     cliente.connect((ip_servidor, puerto_servidor))
@@ -67,17 +77,20 @@ def escuchar_servidor():
         datos_recibidos = cliente.recv(1024)
         mensajes = lector.agregar_bytes(datos_recibidos)
         for mensaje in mensajes:
-            if mensaje["type"] == "welcome":
+            if mensaje.get("type") == "welcome":
                 config_juego["map_size"] = mensaje["config"]["map_size"]
                 config_juego["circle_radius"] = mensaje["config"]["circle_radius"]
-            if mensaje["type"] == "state":
+                info_partida["mi_id"] = mensaje["player_id"]
+            if mensaje.get("type") == "state":
                 ultimo_state["players"] = mensaje["players"]
                 ultimo_state["flag"] = mensaje["flag"]
-            if mensaje["type"] == "countdown":
+            if mensaje.get("type") == "countdown":
                 print("Countdown:", mensaje["seconds"])
-            if mensaje["type"] == "start":
+            if mensaje.get("type") == "start":
                 print("La partida ha comenzado")
-            if mensaje["type"] == "error":
+            if mensaje.get("type") == "game_over":
+                info_partida["ganador"] = mensaje["winner"]
+            if mensaje.get("type") == "error":
                 print("Error del servidor:", mensaje["reason"])
 
 
@@ -114,10 +127,12 @@ def iniciar_ventana():
     pygame.init()
     ventana = pygame.display.set_mode((ANCHO_VENTANA, ALTO_VENTANA))
     pygame.display.set_caption("Captura la Bandera")
+    fuente = pygame.font.SysFont(None, 52)
 
-    color_fondo = (235, 238, 242)
-    color_jugador = (80, 130, 220)
-    color_bandera = (232, 147, 12)
+    color_fondo = (16, 16, 20)
+    color_jugador = (165, 0, 68)
+    color_bandera = (237, 187, 0)
+    color_circulo = (0, 77, 152)
 
     ultima_direccion_enviada = (0, 0)
 
@@ -147,7 +162,7 @@ def iniciar_ventana():
 
         x_centro, y_centro = escalar_posicion(config_juego["map_size"] / 2, config_juego["map_size"] / 2)
         radio_pantalla = config_juego["circle_radius"] * (ANCHO_VENTANA / config_juego["map_size"])
-        pygame.draw.circle(ventana, (200, 205, 212), (int(x_centro), int(y_centro)), int(radio_pantalla), 2)
+        pygame.draw.circle(ventana, color_circulo, (int(x_centro), int(y_centro)), int(radio_pantalla), 2)
 
         x_bandera, y_bandera = escalar_posicion(ultimo_state["flag"]["x"], ultimo_state["flag"]["y"])
         pygame.draw.circle(ventana, color_bandera, (int(x_bandera), int(y_bandera)), 10)
@@ -155,6 +170,13 @@ def iniciar_ventana():
         for jugador in ultimo_state["players"]:
             x_pantalla, y_pantalla = escalar_posicion(jugador["x"], jugador["y"])
             pygame.draw.circle(ventana, color_jugador, (int(x_pantalla), int(y_pantalla)), 8)
+
+        if info_partida["ganador"] is not None:
+            if info_partida["ganador"] == info_partida["mi_id"]:
+                texto = fuente.render("Has ganado!", True, color_bandera)
+            else:
+                texto = fuente.render("Gano " + info_partida["ganador"], True, (240, 240, 245))
+            ventana.blit(texto, (ANCHO_VENTANA / 2 - texto.get_width() / 2, 40))
 
         pygame.display.flip()
 

@@ -13,6 +13,7 @@ jugadores_conectados = {}
 bandera = {"owner": None, "x": 500, "y": 500}
 juego_terminado = False
 fase_partida = "lobby"
+id_ganador = None
 
 
 def generar_posicion_inicial():
@@ -102,7 +103,7 @@ def mover_jugador(datos_jugador, segundos_transcurridos):
 
 
 def ciclo_de_estado():
-    global juego_terminado
+    global juego_terminado, id_ganador
     tick_rate = CONFIG_DEFAULT["tick_rate"]
     segundos_entre_ticks = 1 / tick_rate
 
@@ -127,6 +128,7 @@ def ciclo_de_estado():
 
                 if distancia_al_centro > radio_limite:
                     juego_terminado = True
+                    id_ganador = bandera["owner"]
                     mensaje_ganador = {
                         "type": "game_over",
                         "winner": bandera["owner"],
@@ -180,7 +182,9 @@ def atender_cliente(conexion, direccion, id_jugador):
             for mensaje in mensajes:
                 print("Mensaje recibido de", id_jugador, ":", mensaje)
 
-                if mensaje["type"] == "join":
+                tipo_mensaje = mensaje.get("type")
+
+                if tipo_mensaje == "join":
                     if fase_partida != "lobby":
                         mensaje_error = {
                             "type": "error",
@@ -245,7 +249,7 @@ def atender_cliente(conexion, direccion, id_jugador):
 
                     enviar_lobby_a_todos()
 
-                if mensaje["type"] == "input":
+                if tipo_mensaje == "input":
                     if id_jugador not in jugadores_conectados:
                         mensaje_error = {
                             "type": "error",
@@ -276,7 +280,7 @@ def atender_cliente(conexion, direccion, id_jugador):
                     jugadores_conectados[id_jugador]["dir_x"] = dir_x
                     jugadores_conectados[id_jugador]["dir_y"] = dir_y
 
-                if mensaje["type"] == "interact":
+                if tipo_mensaje == "interact":
                     if id_jugador not in jugadores_conectados:
                         mensaje_error = {
                             "type": "error",
@@ -315,10 +319,14 @@ def escuchar_descubrimiento():
 
     while True:
         datos, direccion_cliente = socket_udp.recvfrom(1024)
+
+        if not datos.endswith(b"\n"):
+            datos = datos + b"\n"
+
         mensajes = lector.agregar_bytes(datos)
 
         for mensaje in mensajes:
-            if mensaje["type"] == "discover":
+            if mensaje.get("type") == "discover":
                 respuesta = {
                     "type": "server_info",
                     "v": 1,
