@@ -11,7 +11,9 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | Consulta | Resultado |
 |---|---|
 | ¿Qué conviene tener resuelto antes de empezar a programar, considerando que el proyecto depende de un protocolo acordado con toda la clase? | Se definió un orden de trabajo previo al código: confirmar el cupo de lenguaje y librería en la hoja de la clase, crear el repositorio para que la cronología de Git arrancara desde el día uno, y ubicar el documento de constantes del profesor. |
-| ¿Cómo convendría dividir el desarrollo en etapas para que cada una sea verificable antes de pasar a la siguiente? | Hoja de ruta en seis etapas (protocolo, conexión, movimiento, reglas, descubrimiento y blindaje), cada una con su propio criterio de "terminada" y su prueba asociada. |
+| ¿Cómo convendría dividir el desarrollo en etapas para que cada una sea verificable antes de pasar a la siguiente? | Hoja de ruta en seis etapas (protocolo, conexión, movimiento, reglas, descubrimiento y blindaje), usada como hoja de ruta durante todo el desarrollo. |
+
+**Commits relacionados:** `a78dc04`, `6c989c8`
 
 ---
 
@@ -22,6 +24,8 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | ¿Por qué el estándar exige acumular los bytes en un buffer en lugar de leer un mensaje por cada lectura del socket? | Comprensión del problema de framing en TCP: los mensajes pueden llegar pegados o partidos, lo que justifica la clase `LectorMensajes` y su corte por salto de línea. |
 | ¿Qué diferencia hay entre el manejo de mensajes en TCP y en UDP según el estándar? | Confirmación de que el salto de línea aplica solo a TCP, ya que cada datagrama UDP llega completo. Esta distinción resultó clave más adelante para corregir un error de interoperabilidad. |
 
+**Commits relacionados:** `a9f06e1`
+
 ---
 
 ## 3. Lógica del juego y sincronización
@@ -31,6 +35,8 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | ¿En qué momento debe asignarse la posición inicial de cada jugador, y por qué el mensaje de estado repite la misma posición si nadie se ha movido? | Distinción entre la asignación de spawn, que ocurre una sola vez por jugador, y el ciclo de estado, que replica el mundo 20 veces por segundo independientemente de si hubo cambios. |
 | ¿Cómo se puede verificar que la comunicación cumple el estándar y no solo que funciona entre mis propios programas? | Adopción de una estrategia de pruebas en tres niveles: local, con netcat como verificador neutral ajeno al proyecto, y con la implementación de un compañero. |
 
+**Commits relacionados:** `f1e7ce8`, `e270fd9`, `171471d`, `2fd69a3`, `1f416dc`, `a2613ac`, `4a054bb`, `727d237`, `51463f2`
+
 ---
 
 ## 4. Fases de partida y manejo de errores
@@ -39,6 +45,8 @@ Este documento recoge las consultas más representativas realizadas durante el d
 |---|---|
 | Si omitiera los mensajes de cuenta regresiva e inicio, ¿qué riesgo habría frente a clientes de otros proyectos que sí los implementen? | Decisión de implementar el ciclo de fases completo, al identificar que un cliente ajeno podría quedarse esperando indefinidamente la señal de inicio. |
 | ¿Cuáles de los errores del catálogo del estándar representan mayor riesgo para la estabilidad del servidor? | Priorización por severidad: primero los que podían detener el servidor por completo (desconexiones abruptas, mensajes recibidos antes del `join`) y luego las validaciones de campos y límites. |
+
+**Commits relacionados:** `0d3bb5b`, `e1aa826`, `1f9d58e`
 
 ---
 
@@ -50,6 +58,9 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | Al comparar mi implementación con la de un compañero escrita en C#, ¿qué diferencias de formato podrían hacer que su validador rechace mis mensajes? | Análisis comparado de ambas implementaciones que descartó el código como causa y orientó la búsqueda hacia la configuración de red y el formato exacto de los datagramas. |
 | Su validador rechaza mi mensaje de estado indicando que las posiciones admiten como máximo un decimal. ¿De dónde proviene esa diferencia? | Identificación de que las posiciones se enviaban con la precisión completa de punto flotante de Python. Se aplicó redondeo a un decimal conforme al estándar. |
 | Ante un rechazo de mensaje entre dos implementaciones distintas, ¿cómo se determina objetivamente de qué lado está el incumplimiento? | Contraste del comportamiento observado contra el texto del estándar, que permitió confirmar que el envío de saltos de línea en datagramas UDP era propio y corregirlo en cliente y servidor. |
+| Un mensaje de tipo `lobby` con un campo adicional sigue haciendo que el cliente vuelva a la sala de espera durante la partida. ¿Es un problema propio o del compañero? | Contraste directo contra el catálogo del estándar, que confirmó que cualquier mensaje `type: lobby` se interpreta siempre igual sin importar campos extra, y que la causa estaba en el servidor del compañero al reutilizar ese tipo de mensaje para otro propósito. |
+
+**Commits relacionados:** `94b3175`
 
 ---
 
@@ -58,6 +69,8 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | Consulta | Resultado |
 |---|---|
 | El estándar de la clase se actualizó a una versión más estricta. ¿Qué puntos de mi implementación dejaron de cumplirlo? | Auditoría completa que identificó cinco desviaciones: el campo de estado del servidor fuera de los valores permitidos, códigos de error en minúsculas, movimiento diagonal sin normalizar, condición de victoria sin exigir la transición dentro-fuera, y falta de notificación al lobby tras una desconexión. |
+
+**Commits relacionados:** `0d74731`
 
 ---
 
@@ -68,6 +81,8 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | ¿Cómo podría reorganizar los módulos para que cada archivo tenga una sola responsabilidad y sea más fácil de estudiar? | Propuesta de separación en módulos por responsabilidad: física, estado de partida y ciclo de partida del lado del servidor; estado de interfaz, pantallas y entrada de teclado del lado del cliente. |
 | ¿En qué orden conviene leer los archivos del proyecto para entender el flujo completo de un mensaje? | Orden de lectura por capas: protocolo base, servidor, cliente y capa visual, siguiendo el recorrido de un mensaje desde que se envía hasta que se dibuja. |
 
+**Commits relacionados:** `b147f94`, `e4d97db`, `58630cb`
+
 ---
 
 ## 8. Documentación
@@ -75,3 +90,5 @@ Este documento recoge las consultas más representativas realizadas durante el d
 | Consulta | Resultado |
 |---|---|
 | ¿Cuál es la mejor forma de documentar el proyecto de modo que la cronología quede respaldada por el historial de Git? | Decisión de mantener la documentación en Markdown dentro del repositorio, con cada entrada de la bitácora enlazada a los commits que la respaldan, en lugar de un documento externo sin trazabilidad. |
+
+**Commits relacionados:** ver historial de `docs/` en el repositorio

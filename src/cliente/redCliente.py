@@ -194,6 +194,54 @@ def conectar(ip, puerto, nombre):
     return True
 
 
+def procesar_mensaje_del_servidor(mensaje):
+    tipo = mensaje.get("type")
+
+    if tipo == "welcome":
+        config_juego["map_size"] = mensaje["config"]["map_size"]
+        config_juego["circle_radius"] = mensaje["config"]["circle_radius"]
+        config_juego["player_radius"] = mensaje["config"].get("player_radius", 15)
+        estado_cliente["mi_id"] = mensaje["player_id"]
+        registro.log_evento("Soy el jugador", mensaje["player_id"])
+
+    if tipo == "lobby":
+        estado_cliente["lobby"] = mensaje.get("players", [])
+        estado_cliente["fase"] = "lobby"
+        estado_cliente["countdown"] = None
+        estado_cliente["ganador"] = None
+        estado_cliente["ganador_nombre"] = None
+
+    if tipo == "state":
+        ultimo_state["players"] = mensaje["players"]
+        ultimo_state["flag"] = mensaje["flag"]
+
+    if tipo == "countdown":
+        estado_cliente["fase"] = "countdown"
+        estado_cliente["countdown"] = mensaje.get("seconds")
+
+    if tipo == "start":
+        estado_cliente["fase"] = "playing"
+        estado_cliente["countdown"] = None
+        registro.log_evento("La partida ha comenzado")
+
+    if tipo == "game_over":
+        estado_cliente["fase"] = "finished"
+        estado_cliente["ganador"] = mensaje.get("winner")
+        estado_cliente["ganador_nombre"] = mensaje.get("winner_name")
+        registro.log_evento("Fin de partida, gano", mensaje.get("winner"))
+
+    if tipo == "error":
+        registro.log_error("El servidor rechazo algo:", mensaje.get("reason"))
+
+    if tipo == "lobby":
+        estado_cliente["lobby"] = mensaje.get("players", [])
+        estado_cliente["fase"] = "lobby"
+        estado_cliente["countdown"] = None
+        estado_cliente["ganador"] = None
+        estado_cliente["ganador_nombre"] = None
+        registro.log_evento("Recibi lobby, volviendo a la sala de espera")
+
+
 def escuchar_mensajes():
     lector = p.LectorMensajes()
 
@@ -211,43 +259,10 @@ def escuchar_mensajes():
                 registro.log_error("El servidor mando un JSON invalido")
 
             for mensaje in mensajes:
-                tipo = mensaje.get("type")
-
-                if tipo == "welcome":
-                    config_juego["map_size"] = mensaje["config"]["map_size"]
-                    config_juego["circle_radius"] = mensaje["config"]["circle_radius"]
-                    config_juego["player_radius"] = mensaje["config"].get("player_radius", 15)
-                    estado_cliente["mi_id"] = mensaje["player_id"]
-                    registro.log_evento("Soy el jugador", mensaje["player_id"])
-
-                if tipo == "lobby":
-                    estado_cliente["lobby"] = mensaje.get("players", [])
-                    estado_cliente["fase"] = "lobby"
-                    estado_cliente["countdown"] = None
-                    estado_cliente["ganador"] = None
-                    estado_cliente["ganador_nombre"] = None
-
-                if tipo == "state":
-                    ultimo_state["players"] = mensaje["players"]
-                    ultimo_state["flag"] = mensaje["flag"]
-
-                if tipo == "countdown":
-                    estado_cliente["fase"] = "countdown"
-                    estado_cliente["countdown"] = mensaje.get("seconds")
-
-                if tipo == "start":
-                    estado_cliente["fase"] = "playing"
-                    estado_cliente["countdown"] = None
-                    registro.log_evento("La partida ha comenzado")
-
-                if tipo == "game_over":
-                    estado_cliente["fase"] = "finished"
-                    estado_cliente["ganador"] = mensaje.get("winner")
-                    estado_cliente["ganador_nombre"] = mensaje.get("winner_name")
-                    registro.log_evento("Fin de partida, gano", mensaje.get("winner"))
-
-                if tipo == "error":
-                    registro.log_error("El servidor rechazo algo:", mensaje.get("reason"))
+                try:
+                    procesar_mensaje_del_servidor(mensaje)
+                except (KeyError, TypeError) as error:
+                    registro.log_error("Mensaje inesperado del servidor:", mensaje.get("type"), "-", error)
     except (ConnectionResetError, OSError):
         pass
 

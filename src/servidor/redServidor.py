@@ -193,7 +193,7 @@ def responder_discover(socket_udp, direccion_cliente):
     respuesta = {
         "type": "server_info",
         "v": 1,
-        "name": "Servidor CTF",
+        "name": "Servidor CTF Nav",
         "tcp_port": PUERTO_JUEGO,
         "state": estado.estado_para_descubrimiento(),
         "players": estado.cantidad_jugadores(),
